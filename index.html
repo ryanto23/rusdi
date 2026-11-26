@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bank Soal Per Kelas & Mapel</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 15px; background: #f4f6f9; color: #333; }
+    .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    h1, h2, h3 { margin-top: 0; color: #1e3a8a; }
+    .grid-pilih { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+    select, button { padding: 10px; font-size: 14px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; font-weight: 600; width: auto; padding: 10px 16px; }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #64748b; }
+    .soal-item { border-bottom: 1px solid #e2e8f0; padding: 15px 0; }
+    .opsi-label { display: block; padding: 8px 12px; margin: 6px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
+    .opsi-label:hover { background: #eff6ff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
+    th { background: #eff6ff; }
+    .hidden { display: none; }
+    .badge-nilai { font-size: 24px; font-weight: bold; color: #16a34a; margin: 10px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>📚 Bank Soal Nasional</h1>
+    <button onclick="tampilkanMenu('navigasi')">Pilih Paket Soal</button>
+    <button class="secondary" onclick="tampilkanMenu('rekap')">📊 Rekap Nilai</button>
+  </div>
+
+  <div id="section-navigasi" class="card">
+    <h3>Pilih Jenjang, Kelas, Mapel, Bab & Sesi</h3>
+    <div class="grid-pilih">
+      <select id="sel-jenjang" onchange="filterKelas()"><option value="">-- Jenjang --</option></select>
+      <select id="sel-kelas" onchange="filterMapel()"><option value="">-- Kelas --</option></select>
+      <select id="sel-mapel" onchange="muatFileMapel()"><option value="">-- Mapel --</option></select>
+      <select id="sel-bab" onchange="filterSesi()"><option value="">-- Bab --</option></select>
+      <select id="sel-sesi"><option value="">-- Sesi --</option></select>
+    </div>
+    <button onclick="mulaiKuis()">Mulai Kerjakan Soal</button>
+  </div>
+
+  <div id="section-kuis" class="card hidden">
+    <h2 id="judul-kuis"></h2>
+    <form id="form-kuis"></form>
+    <br>
+    <button type="button" onclick="selesaiKuis()">Selesai & Lihat Nilai</button>
+    <button type="button" class="secondary" onclick="tampilkanMenu('navigasi')">Batal</button>
+  </div>
+
+  <div id="section-hasil" class="card hidden">
+    <h2>🎉 Hasil Pengerjaan</h2>
+    <p id="detail-hasil"></p>
+    <div class="badge-nilai" id="skor-akhir"></div>
+    <p><em>Nilai otomatis tersimpan ke Rekap Nilai.</em></p>
+    <button onclick="tampilkanMenu('rekap')">Lihat Rekap Nilai</button>
+    <button class="secondary" onclick="tampilkanMenu('navigasi')">Pilih Soal Lain</button>
+  </div>
+
+  <div id="section-rekap" class="card hidden">
+    <h2>📊 Rekap Nilai Tersimpan</h2>
+    <button class="secondary" onclick="hapusRekap()" style="float:right; font-size:12px;">Hapus Riwayat</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Paket Soal</th>
+          <th>Benar</th>
+          <th>Nilai</th>
+        </tr>
+      </thead>
+      <tbody id="tabel-rekap-body"></tbody>
+    </table>
+  </div>
+
+    <script src="katalog.js"></script>
+  <script>
+    const katalog = window.KATALOG_MAPEL || [];
+    let soalAktif = [];
+    let labelPaketAktif = '';
+
+    window.onload = function() {
+      const daftarJenjang = [...new Set(katalog.map(item => item.jenjang))];
+      isiDropdown('sel-jenjang', daftarJenjang, '-- Jenjang --');
+    };
+
+    function isiDropdown(id, list, placeholder) {
+      const el = document.getElementById(id);
+      el.innerHTML = `<option value="">${placeholder}</option>`;
+      list.forEach(val => {
+        el.innerHTML += `<option value="${val}">${val}</option>`;
+      });
+    }
+
+    function filterKelas() {
+      const j = document.getElementById('sel-jenjang').value;
+      const list = [...new Set(katalog.filter(i => i.jenjang === j).map(i => i.kelas))];
+      isiDropdown('sel-kelas', list, '-- Kelas --');
+      isiDropdown('sel-mapel', [], '-- Mapel --');
+      isiDropdown('sel-bab', [], '-- Bab --');
+      isiDropdown('sel-sesi', [], '-- Sesi --');
+    }
+
+    function filterMapel() {
+      const j = document.getElementById('sel-jenjang').value;
+      const k = document.getElementById('sel-kelas').value;
+      const list = [...new Set(katalog.filter(i => i.jenjang === j && i.kelas === k).map(i => i.mapel))];
+      isiDropdown('sel-mapel', list, '-- Mapel --');
+      isiDropdown('sel-bab', [], '-- Bab --');
+      isiDropdown('sel-sesi', [], '-- Sesi --');
+    }
+
+    function muatFileMapel() {
+      const j = document.getElementById('sel-jenjang').value;
+      const k = document.getElementById('sel-kelas').value;
+      const m = document.getElementById('sel-mapel').value;
+
+      isiDropdown('sel-bab', [], '-- Bab --');
+      isiDropdown('sel-sesi', [], '-- Sesi --');
+
+      const infoMapel = katalog.find(i => i.jenjang === j && i.kelas === k && i.mapel === m);
+      if (!infoMapel) return;
+
+      const scriptLama = document.getElementById('script-mapel-aktif');
+      if (scriptLama) scriptLama.remove();
+      window.DATA_MAPEL = null;
+
+      const script = document.createElement('script');
+      script.id = 'script-mapel-aktif';
+      script.src = infoMapel.file;
+
+      script.onload = function() {
+        if (!window.DATA_MAPEL || window.DATA_MAPEL.length === 0) {
+          alert('File mapel ditemukan, tetapi daftar bab masih kosong.');
+          return;
+        }
+        const daftarBab = window.DATA_MAPEL.map(item => item.bab);
+        isiDropdown('sel-bab', daftarBab, '-- Bab --');
+      };
+
+      script.onerror = function() {
+        alert('File ' + infoMapel.file + ' belum ditemukan di repositori.');
+      };
+
+      document.body.appendChild(script);
+    }
+
+    function filterSesi() {
+      const namaBab = document.getElementById('sel-bab').value;
+      isiDropdown('sel-sesi', [], '-- Sesi --');
+      if (!namaBab || !window.DATA_MAPEL) return;
+
+      const dataBab = window.DATA_MAPEL.find(item => item.bab === namaBab);
+      if (dataBab && dataBab.sesi) {
+        const daftarSesi = Object.keys(dataBab.sesi);
+        isiDropdown('sel-sesi', daftarSesi, '-- Sesi --');
+      }
+    }
+
+    function mulaiKuis() {
+      const j = document.getElementById('sel-jenjang').value;
+      const k = document.getElementById('sel-kelas').value;
+      const m = document.getElementById('sel-mapel').value;
+      const b = document.getElementById('sel-bab').value;
+      const s = document.getElementById('sel-sesi').value;
+
+      if (!j || !k || !m || !b || !s) {
+        alert('Silakan lengkapi pilihan Jenjang, Kelas, Mapel, Bab, dan Sesi.');
+        return;
+      }
+
+      const dataBab = window.DATA_MAPEL.find(item => item.bab === b);
+      soalAktif = (dataBab && dataBab.sesi[s]) ? dataBab.sesi[s] : [];
+
+      if (soalAktif.length === 0) {
+        alert('Soal untuk ' + b + ' (' + s + ') belum diisi.');
+        return;
+      }
+
+      labelPaketAktif = k + ' - ' + m + ' (' + b + ' | ' + s + ')';
+      document.getElementById('judul-kuis').innerText = j + ' ' + labelPaketAktif;
+
+      const form = document.getElementById('form-kuis');
+      form.innerHTML = '';
+
+      soalAktif.forEach((item, idx) => {
+        let opsiHtml = '';
+        for (let huruf in item.opsi) {
+          opsiHtml += '<label class="opsi-label"><input type="radio" name="soal_' + idx + '" value="' + huruf + '"> <strong>' + huruf + '.</strong> ' + item.opsi[huruf] + '</label>';
+        }
+        form.innerHTML += '<div class="soal-item"><p><strong>' + (idx + 1) + '.</strong> ' + item.tanya + '</p>' + opsiHtml + '</div>';
+      });
+
+      tampilkanMenu('kuis');
+    }
+
+    function selesaiKuis() {
+      let benar = 0;
+      const total = soalAktif.length;
+
+      soalAktif.forEach((item, idx) => {
+        const terpilih = document.querySelector('input[name="soal_' + idx + '"]:checked');
+        if (terpilih && terpilih.value === item.kunci) benar++;
+      });
+
+      const nilaiAkhir = Math.round((benar / total) * 100);
+
+      const riwayat = JSON.parse(localStorage.getItem('rekap_bank_soal') || '[]');
+      riwayat.unshift({
+        waktu: new Date().toLocaleString('id-ID'),
+        paket: labelPaketAktif,
+        benar: benar + ' / ' + total,
+        nilai: nilaiAkhir
+      });
+      localStorage.setItem('rekap_bank_soal', JSON.stringify(riwayat));
+
+      document.getElementById('detail-hasil').innerText = labelPaketAktif;
+      document.getElementById('skor-akhir').innerText = 'Nilai: ' + nilaiAkhir + ' (Benar ' + benar + ' dari ' + total + ' soal)';
+      tampilkanMenu('hasil');
+    }
+
+    function tampilkanMenu(menu) {
+      ['navigasi', 'kuis', 'hasil', 'rekap'].forEach(id => {
+        document.getElementById('section-' + id).classList.add('hidden');
+      });
+      document.getElementById('section-' + menu).classList.remove('hidden');
+      if (menu === 'rekap') muatRekapNilai();
+    }
+
+    function muatRekapNilai() {
+      const riwayat = JSON.parse(localStorage.getItem('rekap_bank_soal') || '[]');
+      const tbody = document.getElementById('tabel-rekap-body');
+      tbody.innerHTML = riwayat.length === 0 
+        ? '<tr><td colspan="4" style="text-align:center;">Belum ada riwayat nilai.</td></tr>'
+        : riwayat.map(r => '<tr><td>' + r.waktu + '</td><td>' + r.paket + '</td><td>' + r.benar + '</td><td><strong>' + r.nilai + '</strong></td></tr>').join('');
+    }
+
+    function hapusRekap() {
+      if (confirm('Hapus semua rekap nilai?')) {
+        localStorage.removeItem('rekap_bank_soal');
+        muatRekapNilai();
+      }
+    }
+  </script>
+</body>
+</html>
